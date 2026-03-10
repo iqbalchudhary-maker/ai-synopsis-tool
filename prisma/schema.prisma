@@ -1,0 +1,39 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SynopsisGeneration {
+  id                         String   @id @default(uuid())
+  title_id                   String
+  title_name                 String
+  cast                       String?  @db.Text
+  director                   String?
+  source_synopsis            String   @db.Text
+  
+  // AI Generated fields
+  short_synopsis             String   @db.VarChar(120)
+  medium_synopsis            String   @db.VarChar(200)
+  long_synopsis              String   @db.VarChar(350)
+  
+  // Translation fields
+  language_code              String
+  translated_short_synopsis  String?  @db.Text
+  translated_medium_synopsis String?  @db.Text
+  translated_long_synopsis   String?  @db.Text
+  
+  // Audit Trail (Added Fields)
+  created_by                 String?
+  updated_by                 String?
+  
+  // Timestamps
+  created_at                 DateTime @default(now())
+  updated_at                 DateTime @updatedAt
+  
+  @@map("synopsis_generation")
+}

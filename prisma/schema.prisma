@@ -1,4 +1,3 @@
-// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,32 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model SynopsisGeneration {
-  id                         String   @id @default(uuid())
-  title_id                   String
-  title_name                 String
-  cast                       String?  @db.Text
-  director                   String?
-  source_synopsis            String   @db.Text
+model Synopsis {
+  id              String   @id @default(uuid())
+  title_id        String   // Unique identifier
+  title_name      String
+  cast            String?  @db.Text
+  director        String?
+  source_synopsis String   @db.Text
   
-  // AI Generated fields
-  short_synopsis             String   @db.VarChar(120)
-  medium_synopsis            String   @db.VarChar(200)
-  long_synopsis              String   @db.VarChar(350)
+  // AI Generated Content
+  short_synopsis  String   @db.VarChar(120)
+  medium_synopsis String   @db.VarChar(200)
+  long_synopsis   String   @db.VarChar(350)
   
-  // Translation fields
-  language_code              String
-  translated_short_synopsis  String?  @db.Text
-  translated_medium_synopsis String?  @db.Text
-  translated_long_synopsis   String?  @db.Text
+  // Translation
+  language_code              String?
+  translated_short_synopsis  String? @db.Text
+  translated_medium_synopsis String? @db.Text
+  translated_long_synopsis   String? @db.Text
   
-  // Audit Trail (Added Fields)
-  created_by                 String?
-  updated_by                 String?
+  // Audit Trail & Control (Section 6.7)
+  created_by      String   @default("system_user")
+  updated_by      String?
+  version         Int      @default(1)
   
   // Timestamps
-  created_at                 DateTime @default(now())
-  updated_at                 DateTime @updatedAt
-  
-  @@map("synopsis_generation")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([title_id])
 }

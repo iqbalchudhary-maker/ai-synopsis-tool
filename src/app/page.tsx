@@ -1,137 +1,155 @@
 "use client";
 import { useState } from "react";
 import TitleMetadataForm from "./components/TitleMetadataForm";
-import TranslationControls from "./components/TranslationControls";
+import SynopsisDisplay from "./components/SynopsisDisplay";
 
 export default function Home() {
+  const [step, setStep] = useState(0); 
   const [result, setResult] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [credentials, setCredentials] = useState({ username: "", password: "" });
+  const [lastFormData, setLastFormData] = useState<any>(null);
 
-  // 1. Define handleGenerate here
-  const handleGenerate = async (formData: any) => {
-    setIsLoading(true);
+  const applyLimits = (data: any) => {
+    if (!data || typeof data !== 'object') return { short: "", medium: "", long: "" };
+    return {
+      short: (data.short || "").substring(0, 120),
+      medium: (data.medium || "").substring(0, 200),
+      long: (data.long || "").substring(0, 350)
+    };
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (credentials.username === "tanvir" && credentials.password === "tanvir123") {
+      setStep(2);
+    } else {
+      alert("Invalid Credentials! Use: tanvir / tanvir123");
+    }
+  };
+
+  // UPDATED: Handle Save Integration
+  const handleSave = async (manualEdits: any) => {
+    if (!lastFormData) return alert("No metadata found to save!");
+
+    const payload = {
+      title_id: lastFormData.title_id,
+      title_name: lastFormData.title_name,
+      cast: lastFormData.cast,
+      director: lastFormData.director,
+      source_synopsis: lastFormData.source_synopsis,
+      short_synopsis: manualEdits.short,
+      medium_synopsis: manualEdits.medium,
+      long_synopsis: manualEdits.long,
+      language_code: "en",
+      created_by: "tanvir"
+    };
+
+    console.log("🚀 Sending to Database:", payload);
+
+    try {
+      const response = await fetch("/api/synopsis/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.status === "success") {
+        alert("Synopsis successfully saved to database!");
+      } else {
+        throw new Error(result.message || "Failed to save");
+      }
+    } catch (err) {
+      console.error("Save Error:", err);
+      alert("Error: Failed to save to database. Check console for details.");
+    }
+  };
+
+  const handleRegenAll = async () => {
+    if (!lastFormData) return alert("No form data found!");
     try {
       const res = await fetch("/api/synopsis/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(lastFormData),
       });
-      if (!res.ok) throw new Error("API call failed");
-      const json = await res.json();
-      setResult({ ...formData, ...json.data });
-    } catch (error) {
-      console.error("Generation Error:", error);
-      alert("Synopsis generate nahi ho saka.");
-    } finally {
-      setIsLoading(false);
+      const response = await res.json();
+      setResult(applyLimits(response.data || {}));
+    } catch (err) {
+      alert("Failed to regenerate.");
     }
   };
 
-  // 2. Define handleTranslate here
-  const handleTranslate = async (lang: string) => {
-    try {
-      const res = await fetch("/api/synopsis/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...result, target_language: lang }),
-      });
-      const json = await res.json();
-      setResult({ 
-        ...result, 
-        translated_short: json.short, 
-        translated_medium: json.medium, 
-        translated_long: json.long,
-        language_code: lang 
-      });
-    } catch (error) {
-      alert("Translation failed.");
-    }
+  const handleRegenSingle = async (type: string) => {
+    await handleRegenAll();
   };
 
-  // 3. Define handleFinalSave here
-  const handleFinalSave = async () => {
-    try {
-      const res = await fetch("/api/synopsis/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      alert("Saved Successfully!");
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    }
-  };
-
-  // Ab return mein ye functions perfectly available honge
-  return (
-    <main className="min-h-screen bg-slate-50 p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
-       <header className="mb-12 text-center space-y-3">
-  <div className="inline-block px-4 py-1 rounded-full bg-blue-50 text-blue-600 font-semibold text-xs uppercase tracking-widest mb-2 border border-blue-100">
-    Smart Content Studio
+  // --- Render Sections ---
+  if (step === 0) return (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center overflow-hidden relative">
+    {/* Background Glow Effect */}
+    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-125 h-125 bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+    
+    <div className="relative z-10 max-w-2xl">
+      {/* Dynamic Title with Gradient */}
+      <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-white to-blue-400 mb-6 tracking-tight">
+        AI Synopsis Tool
+      </h1>
+      
+      {/* Professional Sub-heading */}
+      <p className="text-lg md:text-xl text-slate-400 mb-12 font-light max-w-md mx-auto">
+        AI Synopsis Rewrite and <span className="text-blue-400 font-semibold">Translation Form</span>
+      </p>
+      
+      {/* Animated Action Button */}
+      <button 
+        onClick={() => setStep(1)} 
+        className="group relative px-8 py-4 bg-white text-slate-950 rounded-full font-bold text-lg hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(59,130,246,0.5)]"
+      >
+        <span className="flex items-center gap-2">
+          Get Started
+          <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+        </span>
+      </button>
+    </div>
   </div>
-  
-  <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight leading-tight">
-    AI Synopsis <span className="text-blue-600 font-semibold">Rewrite & Translation</span>
-  </h1>
-  
-  <p className="text-slate-500 text-lg max-w-lg mx-auto font-medium">
-    Generate, edit, and translate your film metadata with precision.
-  </p>
-</header>
-        <TitleMetadataForm onGenerate={handleGenerate} />
-        
-        {isLoading && (
-          <div className="text-center mt-10 font-bold text-blue-600 animate-pulse">
-            Generating...
-          </div>
-        )}
-        
-        {result && !isLoading && (
-          <div className="mt-10 space-y-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800 mb-8">Review & Refine</h2>
-              <div className="space-y-6">
-                {["short", "medium", "long"].map((key) => (
-                  <div key={key}>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-2">{key}</label>
-                    <textarea 
-                      className="w-full h-24 bg-slate-50 border-none p-4 rounded-2xl focus:ring-2 focus:ring-blue-400"
-                      value={result[key] || ""} 
-                      onChange={(e) => setResult({...result, [key]: e.target.value})} 
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                <TranslationControls onTranslate={handleTranslate} />
-              </div>
-            </div>
+);
 
-            {result.translated_short && (
-              <div className="bg-emerald-900 p-8 rounded-3xl text-white">
-                <h3 className="font-bold mb-4">Translated ({result.language_code})</h3>
-                {["translated_short", "translated_medium", "translated_long"].map((key) => (
-                  <textarea 
-                    key={key}
-                    className="w-full h-20 bg-emerald-800/50 p-4 rounded-xl mb-2"
-                    value={result[key] || ""} 
-                    onChange={(e) => setResult({...result, [key]: e.target.value})} 
-                  />
-                ))}
-              </div>
-            )}
+  if (step === 1) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <form onSubmit={handleLogin} className="bg-white p-8 rounded-2xl shadow-xl w-96 border">
+        <h2 className="text-2xl font-bold mb-6 text-center">Admin Login</h2>
+        <input type="text" placeholder="Username" required className="w-full p-3 border rounded-lg mb-4" onChange={(e) => setCredentials({...credentials, username: e.target.value})} />
+        <input type="password" placeholder="Password" required className="w-full p-3 border rounded-lg mb-6" onChange={(e) => setCredentials({...credentials, password: e.target.value})} />
+        <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold">Login</button>
+      </form>
+    </div>
+  );
 
-            <button 
-              onClick={handleFinalSave} 
-              className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-lg hover:bg-slate-800"
-            >
-              Confirm & Save Data
-            </button>
-          </div>
-        )}
-      </div>
+  return (
+    <main className="max-w-5xl mx-auto p-6 bg-slate-50 min-h-screen">
+      <header className="flex justify-between items-center mb-8 mx-4 p-5 bg-white rounded-2xl shadow-sm">
+        <h1 className="text-xl font-extrabold text-slate-800">Metadata Workspace</h1>
+        <button onClick={() => setStep(0)} className="text-red-500 font-bold hover:underline">Logout</button>
+      </header>
+      
+      <TitleMetadataForm 
+        onGenerate={(data: any, originalFormData: any) => {
+          setLastFormData(originalFormData);
+          setResult(applyLimits(data));
+        }} 
+      />
+      
+      {result && (
+        <SynopsisDisplay 
+          key={JSON.stringify(result)}
+          data={result} 
+          onSave={handleSave}
+          onRegenerateAll={handleRegenAll}
+          onRegenerateSingle={handleRegenSingle}
+        />
+      )}
     </main>
   );
 }

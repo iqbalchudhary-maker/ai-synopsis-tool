@@ -1,31 +1,44 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { generateSynopsis } from "@/lib/gemini";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     
-    // AI se synopsis generate karna (Result ek object hoga: {short, medium, long})
-    const aiData = await generateSynopsis(body);
-    
-    // Debugging: Terminal mein confirm karein ke object structure sahi hai
-    console.log("AI Response Object:", JSON.stringify(aiData, null, 2));
-    
-    // Success Response
-    return NextResponse.json({ 
-      status: "success", 
-      data: aiData 
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" } 
     });
+
+    const prompt = `
+      Generate a FRESH and UNIQUE professional synopsis for: ${body.title_name}. 
+      CAST: ${body.cast || "N/A"}
+      DIRECTOR: ${body.director || "N/A"}
+      SOURCE CONTEXT: ${body.source_synopsis}
+
+      Return EXACTLY this JSON structure:
+      {
+        "short": "string",
+        "medium": "string",
+        "long": "string"
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    // Yahan .text() use karna zaroori hai
+    const responseText = result.response.text();
     
+    // JSON parse karne se pehle safety check
+    const parsedData = JSON.parse(responseText);
+    
+    return NextResponse.json({ data: parsedData });
+
   } catch (error) {
-    // Error Logging: Taake pata chale ke kahan issue hai (AI ya Parsing)
-    console.error("API_GENERATE_ERROR:", error);
-    
+    console.error("AI Generation Error:", error);
     return NextResponse.json(
-      { 
-        status: "error", 
-        error: "Failed to generate synopsis from AI." 
-      }, 
+      { error: "Failed to generate synopsis" }, 
       { status: 500 }
     );
   }

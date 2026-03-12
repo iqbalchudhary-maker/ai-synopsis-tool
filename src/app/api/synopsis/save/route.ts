@@ -1,36 +1,57 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const data = await req.json();
+    const body = await req.json();
     
-    // Database Insertion (All fields as per requirement)
-    const record = await prisma.synopsisGeneration.create({
+    // DEBUG: Terminal mein check karein kya data aa raha hai
+    console.log("DEBUG: Received Body Payload:", JSON.stringify(body, null, 2));
+
+    // 7.1 Mandatory Fields Validation
+    if (!body.title_name || !body.source_synopsis) {
+      console.error("DEBUG: Validation Failed - Missing title_name or source_synopsis");
+      return NextResponse.json(
+        { status: "error", message: "Title Name and Source Synopsis are required." },
+        { status: 400 }
+      );
+    }
+
+    // Database Operation
+    const savedRecord = await prisma.synopsis.create({
       data: {
-        title_id: data.title_id || "N/A",
-        title_name: data.title_name || "Untitled",
-        cast: data.cast || "",
-        director: data.director || "",
-        source_synopsis: data.source_synopsis || "",
-        short_synopsis: (data.short || "").substring(0, 120),
-        medium_synopsis: (data.medium || "").substring(0, 200),
-        long_synopsis: (data.long || "").substring(0, 350),
-        
-        // Translated fields
-        translated_short_synopsis: (data.translated_short || "").substring(0, 120),
-        translated_medium_synopsis: (data.translated_medium || "").substring(0, 200),
-        translated_long_synopsis: (data.translated_long || "").substring(0, 350),
-        
-        language_code: data.language_code || "en",
-        created_by: "user_admin",
-        updated_by: "user_admin"
-      }
+        title_id: body.title_id || "T000", // Default if missing
+        title_name: body.title_name,
+        cast: body.cast || null,
+        director: body.director || null,
+        source_synopsis: body.source_synopsis,
+        short_synopsis: body.short_synopsis || "",
+        medium_synopsis: body.medium_synopsis || "",
+        long_synopsis: body.long_synopsis || "",
+        language_code: body.language_code || "en",
+        translated_short_synopsis: body.translated_short_synopsis || null,
+        translated_medium_synopsis: body.translated_medium_synopsis || null,
+        translated_long_synopsis: body.translated_long_synopsis || null,
+        created_by: body.created_by || "tanvir",
+        updated_by: body.created_by || "tanvir",
+        version: 1
+      },
     });
 
-    return NextResponse.json({ status: "success", id: record.id });
-  } catch (error: any) {
-    console.error("SAVE_ERROR:", error);
-    return NextResponse.json({ status: "error", message: error.message }, { status: 500 });
+    console.log("DEBUG: Successfully saved to database ID:", savedRecord.id);
+
+    return NextResponse.json({ 
+      status: "success", 
+      message: "Synopsis saved successfully!",
+      data: savedRecord 
+    });
+
+  } catch (error) {
+    // Ye catch block batayega agar database mein constraint violation hai
+    console.error("Save Error Details:", error);
+    return NextResponse.json(
+      { status: "error", message: "Failed to save to database." }, 
+      { status: 500 }
+    );
   }
 }
